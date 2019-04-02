@@ -7,7 +7,7 @@
 #define BITCOIN_CHAIN_H
 
 #include "arith_uint256.h"
-#include "hashdb.h"
+// #include "hashdb.h"
 #include "primitives/block.h"
 #include "pow.h"
 #include "tinyformat.h"
@@ -419,7 +419,7 @@ public:
         block.nNonce          = nNonce;
 
         assert(phashdb != nullptr); // FIXME: Benchmark and tests don't initialize hash database
-        return phashdb->GetHash(block);
+        return block.GetHash();     // Fix cache issue
     }
 
     std::string ToString() const

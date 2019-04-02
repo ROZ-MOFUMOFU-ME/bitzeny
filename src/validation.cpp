@@ -17,7 +17,7 @@
 #include "cuckoocache.h"
 #include "fs.h"
 #include "hash.h"
-#include "hashdb.h"
+// #include "hashdb.h"
 #include "init.h"
 #include "policy/fees.h"
 #include "policy/policy.h"
@@ -1023,7 +1023,7 @@ bool ReadBlockFromDisk(CBlock& block, const CDiskBlockPos& pos, const Consensus:
     }
 
     // Check the header
-    if (!CheckProofOfWork(phashdb->GetHash(block), block.nBits, consensusParams))
+    if (!CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
         return error("ReadBlockFromDisk: Errors in block header at %s", pos.ToString());
 
     return true;
@@ -1033,7 +1033,7 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex, const Consensus
 {
     if (!ReadBlockFromDisk(block, pindex->GetBlockPos(), consensusParams))
         return false;
-    if (phashdb->GetHash(block) != pindex->GetBlockHash())
+    if (block.GetHash() != pindex->GetBlockHash())
         return error("ReadBlockFromDisk(CBlock&, CBlockIndex*): GetHash() doesn't match index for %s at %s",
                 pindex->ToString(), pindex->GetBlockPos().ToString());
     return true;
@@ -1655,7 +1655,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
     assert(pindex);
     // pindex->phashBlock can be null if called by CreateNewBlock/TestBlockValidity
     assert((pindex->phashBlock == nullptr) ||
-           (*pindex->phashBlock == phashdb->GetHash(block)));
+           (*pindex->phashBlock == block.GetHash()));
     int64_t nTimeStart = GetTimeMicros();
 
     // Check it again in case a previous version let a bad block in
@@ -1668,7 +1668,7 @@ static bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockInd
 
     // Special case for the genesis block, skipping connection of its transactions
     // (its coinbase is unspendable)
-    if (phashdb->GetHash(block) == chainparams.GetConsensus().hashGenesisBlock) {
+    if (block.GetHash() == chainparams.GetConsensus().hashGenesisBlock) {
         if (!fJustCheck)
             view.SetBestBlock(pindex->GetBlockHash());
         return true;
@@ -2632,7 +2632,7 @@ bool ResetBlockFailureFlags(CBlockIndex *pindex) {
 static CBlockIndex* AddToBlockIndex(const CBlockHeader& block)
 {
     // Check for duplicate
-    uint256 hash = phashdb->GetHash(block);
+    uint256 hash = block.GetHash();
     BlockMap::iterator it = mapBlockIndex.find(hash);
     if (it != mapBlockIndex.end())
         return it->second;
@@ -2805,7 +2805,7 @@ static bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state,
 {
     assert(phashdb != nullptr); // FIXME: Benchmark and tests don't initialize hash database
     // Check proof of work matches claimed amount
-    if (fCheckPOW && !CheckProofOfWork(phashdb->GetHash(block), block.nBits, consensusParams))
+    if (fCheckPOW && !CheckProofOfWork(block.GetHash(), block.nBits, consensusParams))
         return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
 
     return true;
@@ -3063,7 +3063,7 @@ static bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state
 {
     AssertLockHeld(cs_main);
     // Check for duplicate
-    uint256 hash = phashdb->GetHash(block);
+    uint256 hash = block.GetHash();
     BlockMap::iterator miSelf = mapBlockIndex.find(hash);
     CBlockIndex *pindex = nullptr;
     if (hash != chainparams.GetConsensus().hashGenesisBlock) {
@@ -4047,7 +4047,7 @@ bool LoadExternalBlockFile(const CChainParams& chainparams, FILE* fileIn, CDiskB
                 nRewind = blkdat.GetPos();
 
                 // detect out of order blocks, and store them for later
-                uint256 hash = phashdb->GetHash(block);
+                uint256 hash = block.GetHash();
                 if (hash != chainparams.GetConsensus().hashGenesisBlock && mapBlockIndex.find(block.hashPrevBlock) == mapBlockIndex.end()) {
                     LogPrint(BCLog::REINDEX, "%s: Out of order block %s, parent %s not known\n", __func__, hash.ToString(),
                             block.hashPrevBlock.ToString());
